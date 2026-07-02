@@ -20,5 +20,8 @@
       "ioredis": "5.10.1"
     }
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "dotenv": "^16.4.7"
+  }
 }
