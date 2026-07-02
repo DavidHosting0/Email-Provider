@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// @seed="tsx prisma/seed.ts"
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  org_admin
+  user
+}
+
+enum DomainVerificationStatus {
+  pending
+  verified
+  failed
+}
+
+enum EmailSendStatus {
+  queued
+  sending
+  sent
+  failed
+}
+
+enum EmailFolder {
+  inbox
+  sent
+  trash
+  archive
+}
+
+enum SesEventType {
+  bounce
+  complaint
+  delivery
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  domains Domain[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  role           UserRole @default(user)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mailboxAccess  UserMailboxAccess[]
+  refreshTokens  RefreshToken[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model Domain {
+  id                 String                   @id @default(uuid())
+  organizationId     String
+  name               String
+  verificationStatus DomainVerificationStatus @default(pending)
+  sesIdentityArn     String?
+  dkimTokens         String[]                 @default([])
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mailboxes    Mailbox[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("domains")
+}
+
+model Mailbox {
+  id          String   @id @default(uuid())
+  domainId    String
+  localPart   String
+  displayName String?
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  domain        Domain              @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  userAccess    UserMailboxAccess[]
+  threads       EmailThread[]
+  inboxEmails   EmailInbox[]
+  sentEmails    EmailSent[]
+
+  @@unique([domainId, localPart])
+  @@index([domainId])
+  @@map("mailboxes")
+}
+
+model UserMailboxAccess {
+  id        String   @id @default(uuid())
+  userId    String
+  mailboxId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mailbox Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mailboxId])
+  @@index([userId])
+  @@index([mailboxId])
+  @@map("user_mailbox_access")
+}
+
+model EmailThread {
+  id                String   @id @default(uuid())
+  mailboxId         String
+  subject           String
+  participantHashes String[] @default([])
+  lastMessageAt     DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  mailbox     Mailbox      @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  inboxEmails EmailInbox[]
+
+  @@index([mailboxId, lastMessageAt(sort: Desc)])
+  @@map("email_threads")
+}
+
+model EmailInbox {
+  id         String      @id @default(uuid())
+  threadId   String?
+  mailboxId  String
+  messageId  String?
+  fromAddr   String
+  toAddrs    String[]
+  ccAddrs    String[]    @default([])
+  subject    String
+  bodyText   String?
+  bodyHtml   String?
+  rawS3Key   String?
+  folder     EmailFolder @default(inbox)
+  isRead     Boolean     @default(false)
+  receivedAt DateTime    @default(now())
+  createdAt  DateTime    @default(now())
+
+  thread  EmailThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  mailbox Mailbox      @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@index([mailboxId, receivedAt(sort: Desc)])
+  @@index([mailboxId, folder])
+  @@index([threadId])
+  @@map("emails_inbox")
+}
+
+model EmailSent {
+  id           String          @id @default(uuid())
+  mailboxId    String
+  threadId     String?
+  messageId    String?
+  fromAddr     String
+  toAddrs      String[]
+  ccAddrs      String[]        @default([])
+  bccAddrs     String[]        @default([])
+  subject      String
+  bodyText     String?
+  bodyHtml     String?
+  status       EmailSendStatus @default(queued)
+  sesMessageId String?
+  inReplyTo    String?
+  sentAt       DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  mailbox      Mailbox       @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  deliveryLogs DeliveryLog[]
+
+  @@index([mailboxId, createdAt(sort: Desc)])
+  @@index([mailboxId, status])
+  @@map("emails_sent")
+}
+
+model DeliveryLog {
+  id          String   @id @default(uuid())
+  emailSentId String
+  attempt     Int
+  success     Boolean
+  errorCode   String?
+  errorMessage String?
+  createdAt   DateTime @default(now())
+
+  emailSent EmailSent @relation(fields: [emailSentId], references: [id], onDelete: Cascade)
+
+  @@index([emailSentId])
+  @@map("delivery_logs")
+}
+
+model SesEvent {
+  id           String       @id @default(uuid())
+  eventType    SesEventType
+  messageId    String?
+  emailAddress String?
+  payload      Json
+  createdAt    DateTime     @default(now())
+
+  @@index([messageId])
+  @@index([eventType])
+  @@map("ses_events")
+}
