@@ -1,7 +1,15 @@
-import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import https from 'node:https';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { inboundQueue } from '../lib/queue.js';
+
+const require = createRequire(import.meta.url);
+const MessageValidator = require('sns-validator') as new () => {
+  validate(
+    message: Record<string, unknown>,
+    cb: (err: Error | null, message: SnsMessage) => void,
+  ): void;
+};
 
 interface SnsMessage {
   Type: string;
@@ -17,40 +25,15 @@ interface SnsMessage {
   Token?: string;
 }
 
-async function fetchCert(url: string): Promise<string> {
+const snsValidator = new MessageValidator();
+
+function validateSnsMessage(msg: Record<string, unknown>): Promise<SnsMessage> {
   return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => resolve(data));
-      res.on('error', reject);
-    }).on('error', reject);
+    snsValidator.validate(msg, (err, validated) => {
+      if (err) reject(err);
+      else resolve(validated);
+    });
   });
-}
-
-function buildSignatureString(msg: SnsMessage): string {
-  const lines: string[] = [];
-
-  const add = (key: string, value: string | undefined) => {
-    if (value !== undefined) lines.push(`${key}\n${value}\n`);
-  };
-
-  add('Message', msg.Message);
-  add('MessageId', msg.MessageId);
-  add('Subject', msg.Subject);
-  add('Timestamp', msg.Timestamp);
-
-  if (msg.Type === 'SubscriptionConfirmation' || msg.Type === 'UnsubscribeConfirmation') {
-    add('Token', msg.Token);
-    add('TopicArn', msg.TopicArn);
-    add('Type', msg.Type);
-    add('SubscribeURL', msg.SubscribeURL);
-  } else {
-    add('TopicArn', msg.TopicArn);
-    add('Type', msg.Type);
-  }
-
-  return lines.join('');
 }
 
 async function confirmSubscription(url: string): Promise<void> {
@@ -66,90 +49,94 @@ async function confirmSubscription(url: string): Promise<void> {
   });
 }
 
-async function verifySnsSignature(msg: SnsMessage): Promise<boolean> {
-  if (!msg.SigningCertURL?.startsWith('https://sns.')) return false;
-  if (!msg.SigningCertURL.includes('.amazonaws.com/')) return false;
+function parseSnsBody(body: unknown): Record<string, unknown> {
+  if (typeof body === 'string') return JSON.parse(body) as Record<string, unknown>;
+  if (body && typeof body === 'object') return body as Record<string, unknown>;
+  throw new Error('Invalid SNS body');
+}
 
+async function handleSnsMessage(
+  request: FastifyRequest,
+  onNotification: (msg: SnsMessage) => Promise<void>,
+) {
+  let msg: SnsMessage;
   try {
-    const cert = await fetchCert(msg.SigningCertURL);
-    const algorithm = msg.SignatureVersion === '2' ? 'RSA-SHA256' : 'RSA-SHA1';
-    const verifier = crypto.createVerify(algorithm);
-    verifier.update(buildSignatureString(msg));
-    return verifier.verify(cert, msg.Signature, 'base64');
-  } catch {
-    return false;
+    msg = await validateSnsMessage(parseSnsBody(request.body));
+  } catch (err) {
+    request.log.warn(
+      { err: err instanceof Error ? err.message : err },
+      'SNS signature validation failed',
+    );
+    throw Object.assign(new Error('Invalid SNS signature'), { statusCode: 403 });
   }
+
+  if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
+    await confirmSubscription(msg.SubscribeURL);
+    request.log.info({ topicArn: msg.TopicArn }, 'SNS subscription confirmed');
+    return { status: 'subscribed' };
+  }
+
+  if (msg.Type === 'Notification') {
+    await onNotification(msg);
+    return { status: 'processed' };
+  }
+
+  return { status: 'ignored' };
 }
 
 export async function webhookRoutes(app: FastifyInstance) {
-  app.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
-    try {
-      const parsed = JSON.parse(body as string);
-      done(null, parsed);
-    } catch (err) {
-      done(err as Error);
-    }
-  });
+  await app.register(async (webhooks) => {
+    webhooks.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
+      try {
+        done(null, parseSnsBody(body));
+      } catch (err) {
+        done(err as Error);
+      }
+    });
 
-  app.post('/ses/inbound', async (request, reply) => {
-    const msg = request.body as SnsMessage;
-
-    if (!(await verifySnsSignature(msg))) {
-      return reply.status(403).send({ error: 'Invalid SNS signature' });
-    }
-
-    if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
-      await confirmSubscription(msg.SubscribeURL);
-      request.log.info({ topicArn: msg.TopicArn }, 'SNS subscription confirmed');
-      return { status: 'subscribed' };
-    }
-
-    if (msg.Type === 'Notification') {
-      const sesNotification = JSON.parse(msg.Message);
-      await inboundQueue.add('ingest', {
-        notificationType: sesNotification.notificationType,
-        mail: sesNotification.mail,
-        receipt: sesNotification.receipt,
-      });
-      return { status: 'queued' };
-    }
-
-    return { status: 'ignored' };
-  });
-
-  app.post('/ses/events', async (request, reply) => {
-    const msg = request.body as SnsMessage;
-
-    if (!(await verifySnsSignature(msg))) {
-      return reply.status(403).send({ error: 'Invalid SNS signature' });
-    }
-
-    if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
-      await confirmSubscription(msg.SubscribeURL);
-      request.log.info({ topicArn: msg.TopicArn }, 'SNS subscription confirmed');
-      return { status: 'subscribed' };
-    }
-
-    if (msg.Type === 'Notification') {
-      const event = JSON.parse(msg.Message);
-      const eventType = event.eventType?.toLowerCase();
-
-      if (eventType === 'bounce' || eventType === 'complaint' || eventType === 'delivery') {
-        const { prisma } = await import('@email-provider/database');
-        await prisma.sesEvent.create({
-          data: {
-            eventType,
-            messageId: event.mail?.messageId,
-            emailAddress: event.bounce?.bouncedRecipients?.[0]?.emailAddress
-              ?? event.complaint?.complainedRecipients?.[0]?.emailAddress,
-            payload: event,
-          },
+    webhooks.post('/ses/inbound', async (request, reply) => {
+      try {
+        return await handleSnsMessage(request, async (msg) => {
+          const sesNotification = JSON.parse(msg.Message);
+          await inboundQueue.add('ingest', {
+            notificationType: sesNotification.notificationType,
+            mail: sesNotification.mail,
+            receipt: sesNotification.receipt,
+          });
+        });
+      } catch (err) {
+        const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+        return reply.status(statusCode).send({
+          error: err instanceof Error ? err.message : 'Webhook error',
         });
       }
+    });
 
-      return { status: 'processed' };
-    }
+    webhooks.post('/ses/events', async (request, reply) => {
+      try {
+        return await handleSnsMessage(request, async (msg) => {
+          const event = JSON.parse(msg.Message);
+          const eventType = event.eventType?.toLowerCase();
 
-    return { status: 'ignored' };
+          if (eventType === 'bounce' || eventType === 'complaint' || eventType === 'delivery') {
+            const { prisma } = await import('@email-provider/database');
+            await prisma.sesEvent.create({
+              data: {
+                eventType,
+                messageId: event.mail?.messageId,
+                emailAddress: event.bounce?.bouncedRecipients?.[0]?.emailAddress
+                  ?? event.complaint?.complainedRecipients?.[0]?.emailAddress,
+                payload: event,
+              },
+            });
+          }
+        });
+      } catch (err) {
+        const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+        return reply.status(statusCode).send({
+          error: err instanceof Error ? err.message : 'Webhook error',
+        });
+      }
+    });
   });
 }
