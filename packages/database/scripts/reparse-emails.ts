@@ -1,5 +1,5 @@
 import { prisma } from '@email-provider/database';
-import { reparseEmailBodyFromS3, needsBodyReparse } from '@email-provider/email';
+import { hydrateEmailBody } from '@email-provider/email';
 
 const s3Config = {
   region: process.env.SES_REGION ?? 'eu-central-1',
@@ -9,49 +9,43 @@ const s3Config = {
   prefix: process.env.SES_INBOUND_S3_PREFIX ?? 'inbound/',
 };
 
-if (!s3Config.bucket) {
-  console.error('SES_INBOUND_S3_BUCKET is required');
-  process.exit(1);
-}
-
 const emails = await prisma.emailInbox.findMany({
-  where: { rawS3Key: { not: null } },
+  orderBy: { receivedAt: 'desc' },
   select: {
     id: true,
     messageId: true,
+    subject: true,
     bodyHtml: true,
     bodyText: true,
+    rawMime: true,
     rawS3Key: true,
-    subject: true,
   },
 });
 
 let updated = 0;
-let failed = 0;
+let skipped = 0;
 
 for (const email of emails) {
-  const bodyMissing = !email.bodyHtml?.trim() && !email.bodyText?.trim();
-  if (!bodyMissing && !needsBodyReparse(email)) continue;
+  const hydrated = await hydrateEmailBody(
+    email,
+    s3Config.bucket ? s3Config : undefined,
+  );
 
-  try {
-    const fresh = await reparseEmailBodyFromS3(email, s3Config);
-    if (!fresh?.bodyHtml && !fresh?.bodyText) {
-      failed++;
-      console.warn('No content parsed:', email.id, email.subject);
-      continue;
-    }
-
-    await prisma.emailInbox.update({
-      where: { id: email.id },
-      data: { bodyHtml: fresh.bodyHtml, bodyText: fresh.bodyText ?? email.bodyText },
-    });
-    updated++;
-    console.log('Updated:', email.subject?.slice(0, 60));
-  } catch (err) {
-    failed++;
-    console.warn('Failed:', email.id, err instanceof Error ? err.message : err);
+  if (!hydrated.updated) {
+    skipped++;
+    continue;
   }
+
+  await prisma.emailInbox.update({
+    where: { id: email.id },
+    data: {
+      bodyHtml: hydrated.bodyHtml,
+      bodyText: hydrated.bodyText,
+    },
+  });
+  updated++;
+  console.log('Updated:', email.subject?.slice(0, 60));
 }
 
-console.log(`Done. Updated ${updated}, failed ${failed}, skipped ${emails.length - updated - failed}`);
+console.log(`Done. Updated ${updated}, skipped ${skipped}`);
 await prisma.$disconnect();

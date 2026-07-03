@@ -1,6 +1,6 @@
 import { Worker, type Job } from 'bullmq';
 import { prisma } from '@email-provider/database';
-import { fetchEmailFromS3, parseRawEmail, hashParticipants, formatS3Ref } from '@email-provider/email';
+import { fetchEmailFromS3, parseRawEmail, hashParticipants, formatS3Ref, decodeInboundContent, encodeRawMime, looksLikeRawEmail } from '@email-provider/email';
 import { QUEUE_NAMES, parseRedisUrl } from '@email-provider/shared';
 import { workerConfig } from '../config.js';
 import pino from 'pino';
@@ -69,6 +69,9 @@ async function tryFetchFromS3(
       },
       key,
     );
+    if (!looksLikeRawEmail(raw)) {
+      throw new Error(`S3 object does not look like raw email: ${key}`);
+    }
     return { raw, s3Key: key, bucket: action.bucketName };
   }
 
@@ -88,6 +91,7 @@ async function tryFetchFromS3(
         },
         key,
       );
+      if (!looksLikeRawEmail(raw)) continue;
       return { raw, s3Key: key, bucket: workerConfig.sesInboundS3Bucket };
     } catch {
       // try next key pattern
@@ -133,8 +137,12 @@ async function resolveRawEmail(
   }
 
   if (content) {
+    const raw = decodeInboundContent(content);
+    if (!looksLikeRawEmail(raw)) {
+      throw new Error(`SNS content does not look like raw email for message ${mail.messageId}`);
+    }
     logger.info({ messageId: mail.messageId }, 'Using raw email from SNS content field');
-    return { raw: Buffer.from(content, 'utf8'), s3Ref: null };
+    return { raw, s3Ref: null };
   }
 
   throw new Error(`Could not resolve email body for message ${mail.messageId}`);
@@ -152,6 +160,7 @@ export function startInboundWorker() {
 
       const { raw, s3Ref } = await resolveRawEmail(job.data);
       const parsed = applySesFallbacks(await parseRawEmail(raw), mail);
+      const rawMime = encodeRawMime(raw);
       const recipients = receipt.recipients ?? mail.destination;
 
       for (const recipient of recipients) {
@@ -208,6 +217,7 @@ export function startInboundWorker() {
             subject: parsed.subject,
             bodyText: parsed.bodyText,
             bodyHtml: parsed.bodyHtml,
+            rawMime,
             rawS3Key: s3Ref,
             folder: 'inbox',
             isRead: false,

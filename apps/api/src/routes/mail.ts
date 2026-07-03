@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { sendEmailSchema, updateEmailSchema } from '@email-provider/shared';
 import { buildMailboxAddress } from '@email-provider/shared';
 import { prisma } from '@email-provider/database';
-import { needsBodyReparse, reparseEmailBodyFromS3 } from '@email-provider/email';
+import { hydrateEmailBody } from '@email-provider/email';
 import { getUser, requireMailboxAccess, getMailboxWithDomain } from '../lib/middleware.js';
 import { checkSendRateLimit } from '../lib/rate-limit.js';
 import { outboundQueue } from '../lib/queue.js';
@@ -75,7 +75,10 @@ export async function mailRoutes(app: FastifyInstance) {
         mailbox: { domain: { organizationId: user.organizationId } },
       },
       include: {
-        inboxEmails: { orderBy: { receivedAt: 'asc' } },
+        inboxEmails: {
+          where: { folder: 'inbox' },
+          orderBy: { receivedAt: 'asc' },
+        },
         mailbox: { include: { domain: true } },
       },
     });
@@ -97,36 +100,42 @@ export async function mailRoutes(app: FastifyInstance) {
       prefix: config.sesInboundS3Prefix,
     };
 
+    const hydratedEmails = [];
     for (const email of thread.inboxEmails) {
-      const bodyMissing = !email.bodyHtml?.trim() && !email.bodyText?.trim();
-      const shouldReparse = email.rawS3Key && (bodyMissing || needsBodyReparse(email));
-      if (!shouldReparse) continue;
+      const hydrated = await hydrateEmailBody(
+        { ...email, messageId: email.messageId },
+        s3Config.bucket ? s3Config : undefined,
+      );
 
-      try {
-        const fresh = await reparseEmailBodyFromS3(
-          { ...email, messageId: email.messageId },
-          s3Config,
-        );
-        if (!fresh?.bodyHtml && !fresh?.bodyText) continue;
-
+      if (hydrated.updated) {
         await prisma.emailInbox.update({
           where: { id: email.id },
           data: {
-            bodyHtml: fresh.bodyHtml,
-            bodyText: fresh.bodyText ?? email.bodyText,
+            bodyHtml: hydrated.bodyHtml,
+            bodyText: hydrated.bodyText,
           },
         });
-        email.bodyHtml = fresh.bodyHtml;
-        if (fresh.bodyText) email.bodyText = fresh.bodyText;
-      } catch (err) {
-        request.log.warn(
-          { emailId: email.id, err: err instanceof Error ? err.message : err },
-          'Failed to reparse email body from S3',
-        );
       }
+
+      hydratedEmails.push({
+        id: email.id,
+        fromAddr: email.fromAddr,
+        toAddrs: email.toAddrs,
+        ccAddrs: email.ccAddrs,
+        subject: email.subject,
+        bodyText: hydrated.bodyText,
+        bodyHtml: hydrated.bodyHtml,
+        receivedAt: email.receivedAt,
+      });
     }
 
-    return thread;
+    return {
+      id: thread.id,
+      subject: thread.subject,
+      mailboxId: thread.mailboxId,
+      lastMessageAt: thread.lastMessageAt,
+      inboxEmails: hydratedEmails,
+    };
   });
 
   app.post('/mailboxes/:id/send', async (request, reply) => {

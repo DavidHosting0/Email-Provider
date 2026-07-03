@@ -2,27 +2,6 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 
-function isEffectivelyEmptyHtml(html: string | null | undefined): boolean {
-  if (!html?.trim()) return true;
-  const text = html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&#160;/gi, ' ')
-    .replace(/\s+/g, '')
-    .trim();
-  return text.length === 0;
-}
-
-function hasRenderableHtml(html: string | null | undefined): boolean {
-  if (!html?.trim()) return false;
-  if (!isEffectivelyEmptyHtml(html)) return true;
-  if (/<img[\s>]/i.test(html)) return true;
-  if (/<table[\s>]/i.test(html)) return true;
-  if (/<style[\s>]/i.test(html)) return true;
-  return html.replace(/\s/g, '').length > 80;
-}
-
 function buildEmailSrcDoc(html: string): string {
   const trimmed = html.trim();
   if (/^<!DOCTYPE/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
@@ -41,24 +20,26 @@ function buildEmailSrcDoc(html: string): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base target="_blank" rel="noopener noreferrer">
-  <style>body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }</style>
+  <style>body { margin: 0; padding: 16px; font-family: Arial, sans-serif; background: #fff; color: #111; -webkit-text-size-adjust: 100%; }</style>
 </head>
 <body>${html}</body>
 </html>`;
 }
 
 interface EmailBodyProps {
-  html: string | null;
-  text: string | null;
+  html: string | null | undefined;
+  text: string | null | undefined;
   className?: string;
 }
 
 export function EmailBody({ html, text, className }: EmailBodyProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const showHtml = hasRenderableHtml(html);
+  const htmlContent = typeof html === 'string' ? html.trim() : '';
+  const textContent = typeof text === 'string' ? text.trim() : '';
+  const showHtml = htmlContent.length > 0;
   const srcDoc = useMemo(
-    () => (showHtml && html ? buildEmailSrcDoc(html) : null),
-    [html, showHtml],
+    () => (showHtml ? buildEmailSrcDoc(htmlContent) : null),
+    [htmlContent, showHtml],
   );
 
   useEffect(() => {
@@ -108,12 +89,12 @@ export function EmailBody({ html, text, className }: EmailBodyProps) {
     );
   }
 
-  if (text?.trim()) {
+  if (textContent) {
     return (
       <pre
         className={`whitespace-pre-wrap font-sans text-sm leading-relaxed text-mail-text/90 ${className ?? ''}`}
       >
-        {text}
+        {textContent}
       </pre>
     );
   }

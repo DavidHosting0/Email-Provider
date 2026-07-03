@@ -165,6 +165,7 @@ model EmailInbox {
   subject    String
   bodyText   String?
   bodyHtml   String?
+  rawMime    String?
   rawS3Key   String?
   folder     EmailFolder @default(inbox)
   isRead     Boolean     @default(false)
