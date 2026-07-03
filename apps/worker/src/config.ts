@@ -6,6 +6,7 @@ export const workerConfig = {
   sesSmtpUser: process.env.SES_SMTP_USER ?? '',
   sesSmtpPass: process.env.SES_SMTP_PASS ?? '',
   sesInboundS3Bucket: process.env.SES_INBOUND_S3_BUCKET ?? '',
+  sesInboundS3Prefix: process.env.SES_INBOUND_S3_PREFIX ?? 'inbound/',
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
   concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),

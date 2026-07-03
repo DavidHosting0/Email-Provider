@@ -100,6 +100,7 @@ export async function webhookRoutes(app: FastifyInstance) {
           const sesNotification = JSON.parse(msg.Message);
           await inboundQueue.add('ingest', {
             notificationType: sesNotification.notificationType,
+            content: sesNotification.content,
             mail: sesNotification.mail,
             receipt: sesNotification.receipt,
           });

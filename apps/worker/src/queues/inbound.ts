@@ -16,6 +16,7 @@ const connection = parseRedisUrl(workerConfig.redisUrl);
 
 interface InboundJobData {
   notificationType: string;
+  content?: string;
   mail: {
     messageId: string;
     source: string;
@@ -23,7 +24,12 @@ interface InboundJobData {
     commonHeaders?: { subject?: string };
   };
   receipt: {
-    action?: { type: string; bucketName?: string; objectKey?: string };
+    action?: {
+      type: string;
+      bucketName?: string;
+      objectKey?: string;
+      objectKeyPrefix?: string;
+    };
     recipients?: string[];
   };
 }
@@ -36,29 +42,80 @@ function extractDomain(email: string): string {
   return email.split('@')[1]?.toLowerCase() ?? '';
 }
 
-export function startInboundWorker() {
-  const worker = new Worker<InboundJobData>(
-    QUEUE_NAMES.INBOUND_INGEST,
-    async (job: Job<InboundJobData>) => {
-      const { mail, receipt } = job.data;
-      logger.info({ messageId: mail.messageId }, 'Processing inbound email');
+function normalizePrefix(prefix: string): string {
+  if (!prefix) return '';
+  return prefix.endsWith('/') ? prefix : `${prefix}/`;
+}
 
-      const s3Action = receipt.action;
-      if (!s3Action?.bucketName || !s3Action?.objectKey) {
-        logger.error({ messageId: mail.messageId }, 'No S3 action in receipt');
-        return;
-      }
+async function resolveRawEmail(
+  data: InboundJobData,
+): Promise<{ raw: Buffer; s3Key: string | null }> {
+  const { mail, receipt, content } = data;
 
+  if (content) {
+    logger.info({ messageId: mail.messageId }, 'Using raw email from SNS content field');
+    return { raw: Buffer.from(content), s3Key: null };
+  }
+
+  const action = receipt.action;
+  if (action?.type === 'S3' && action.bucketName && action.objectKey) {
+    const key = action.objectKeyPrefix
+      ? `${normalizePrefix(action.objectKeyPrefix)}${action.objectKey}`
+      : action.objectKey;
+    const raw = await fetchEmailFromS3(
+      {
+        region: workerConfig.sesRegion,
+        accessKeyId: workerConfig.awsAccessKeyId,
+        secretAccessKey: workerConfig.awsSecretAccessKey,
+        bucket: action.bucketName,
+      },
+      key,
+    );
+    return { raw, s3Key: key };
+  }
+
+  if (!workerConfig.sesInboundS3Bucket) {
+    throw new Error('No email content in notification and SES_INBOUND_S3_BUCKET is not set');
+  }
+
+  const prefix = normalizePrefix(workerConfig.sesInboundS3Prefix);
+  const candidates = [
+    `${prefix}${mail.messageId}`,
+    mail.messageId,
+  ];
+
+  for (const key of candidates) {
+    try {
       const raw = await fetchEmailFromS3(
         {
           region: workerConfig.sesRegion,
           accessKeyId: workerConfig.awsAccessKeyId,
           secretAccessKey: workerConfig.awsSecretAccessKey,
-          bucket: s3Action.bucketName,
+          bucket: workerConfig.sesInboundS3Bucket,
         },
-        s3Action.objectKey,
+        key,
+      );
+      logger.info({ messageId: mail.messageId, s3Key: key }, 'Fetched email from S3 fallback');
+      return { raw, s3Key: key };
+    } catch {
+      // try next key pattern
+    }
+  }
+
+  throw new Error(`Could not fetch email from S3 for message ${mail.messageId}`);
+}
+
+export function startInboundWorker() {
+  const worker = new Worker<InboundJobData>(
+    QUEUE_NAMES.INBOUND_INGEST,
+    async (job: Job<InboundJobData>) => {
+      const { mail, receipt } = job.data;
+      logger.info(
+        { messageId: mail.messageId, actionType: receipt.action?.type },
+        'Processing inbound email',
       );
 
+      const { raw, s3Key } = await resolveRawEmail(job.data);
       const parsed = await parseRawEmail(raw);
       const recipients = receipt.recipients ?? mail.destination;
 
@@ -116,7 +173,7 @@ export function startInboundWorker() {
             subject: parsed.subject,
             bodyText: parsed.bodyText,
             bodyHtml: parsed.bodyHtml,
-            rawS3Key: s3Action.objectKey,
+            rawS3Key: s3Key,
             folder: 'inbox',
             isRead: false,
           },
