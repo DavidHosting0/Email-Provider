@@ -20,7 +20,11 @@ export async function parseRawEmail(raw: Buffer | string): Promise<ParsedEmail> 
   const cc = extractAddresses(parsed.cc);
 
   const bodyText = parsed.text ?? undefined;
-  const rawHtml = parsed.html ? String(parsed.html) : undefined;
+  const rawHtml = parsed.html
+    ? String(parsed.html)
+    : parsed.textAsHtml
+      ? String(parsed.textAsHtml)
+      : undefined;
   const bodyHtml = rawHtml ? sanitizeHtml(rawHtml) : undefined;
 
   return {
