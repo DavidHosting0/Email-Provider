@@ -30,7 +30,8 @@ let updated = 0;
 let failed = 0;
 
 for (const email of emails) {
-  if (!needsBodyReparse(email) && email.bodyHtml?.trim()) continue;
+  const bodyMissing = !email.bodyHtml?.trim() && !email.bodyText?.trim();
+  if (!bodyMissing && !needsBodyReparse(email)) continue;
 
   try {
     const fresh = await reparseEmailBodyFromS3(email, s3Config);

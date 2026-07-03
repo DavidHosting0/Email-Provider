@@ -98,8 +98,9 @@ export async function mailRoutes(app: FastifyInstance) {
     };
 
     for (const email of thread.inboxEmails) {
-      if (!email.rawS3Key) continue;
-      if (!needsBodyReparse(email) && email.bodyHtml?.trim()) continue;
+      const bodyMissing = !email.bodyHtml?.trim() && !email.bodyText?.trim();
+      const shouldReparse = email.rawS3Key && (bodyMissing || needsBodyReparse(email));
+      if (!shouldReparse) continue;
 
       try {
         const fresh = await reparseEmailBodyFromS3(
