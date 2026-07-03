@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm db:generate && pnpm -r build",
+    "postinstall": "pnpm db:generate",
     "dev": "pnpm -r --parallel dev",
     "db:generate": "pnpm --filter @email-provider/database generate",
     "db:migrate": "pnpm --filter @email-provider/database migrate",
     "db:seed": "pnpm --filter @email-provider/database seed",
     "db:push": "pnpm --filter @email-provider/database push",
+    "db:reparse": "pnpm --filter @email-provider/worker reparse",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   },

@@ -1,0 +1,58 @@
+---
+description: MailPlatform production deploy and PM2 restart commands — include in responses when code changes need deployment
+alwaysApply: true
+---
+
+# MailPlatform — Production deploy & restart
+
+When code changes are made that require deployment, **always** end the response with these server instructions (adapt steps if only some services changed).
+
+## Server path
+
+`/opt/email-provider`
+
+## Full update (production)
+
+```bash
+cd /opt/email-provider
+git pull
+pnpm install
+pnpm db:generate
+pnpm db:migrate
+pnpm build
+pm2 restart mailplatform-api mailplatform-web mailplatform-worker
+```
+
+## PM2 process names
+
+| Service | PM2 name |
+|---------|----------|
+| API | `mailplatform-api` |
+| Web | `mailplatform-web` |
+| Worker | `mailplatform-worker` |
+
+## Partial restarts (after targeted fixes)
+
+```bash
+# API only
+pm2 restart mailplatform-api
+
+# Worker only (inbound email ingest, parsing)
+pm2 restart mailplatform-worker
+
+# Web only (UI)
+pm2 restart mailplatform-web
+```
+
+## Optional maintenance
+
+```bash
+# Re-parse stored emails missing body content (from S3/rawMime)
+pnpm db:reparse
+```
+
+## Notes
+
+- Always run `pnpm db:generate` before build if Prisma schema changed.
+- Worker must be restarted after email parsing / ingest changes.
+- Check logs: `pm2 logs mailplatform-worker --lines 50`

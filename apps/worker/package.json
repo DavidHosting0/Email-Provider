@@ -7,6 +7,7 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "reparse": "dotenv -e ../../.env -- tsx scripts/reparse-emails.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "dotenv-cli": "^8.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
