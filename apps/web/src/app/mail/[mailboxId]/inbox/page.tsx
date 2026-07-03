@@ -86,7 +86,9 @@ export default function InboxPage() {
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{email.fromAddr}</p>
-                      <p className="text-xs text-gray-500">to {email.toAddrs.join(', ')}</p>
+                      <p className="text-xs text-gray-500">
+                        {email.toAddrs.length > 0 ? `to ${email.toAddrs.join(', ')}` : null}
+                      </p>
                     </div>
                     <span className="shrink-0 text-xs text-gray-400">{formatDate(email.receivedAt)}</span>
                   </div>
