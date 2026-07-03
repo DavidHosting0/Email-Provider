@@ -2,9 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { AppShell } from '@/components/app-shell';
+import { MailShell } from '@/components/mail-shell';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
 
 interface TrashEmail {
   id: string;
@@ -23,27 +24,36 @@ export default function TrashPage() {
   });
 
   return (
-    <AppShell>
-      <div className="p-6">
-        <h1 className="mb-4 text-lg font-semibold">Trash</h1>
+    <MailShell>
+      <div className="h-full overflow-y-auto bg-white">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h1 className="text-sm font-semibold text-gray-800">Trash</h1>
+        </div>
+
         {isLoading ? (
-          <p className="text-sm text-gray-500">Loading...</p>
+          <p className="p-6 text-sm text-gray-500">Loading...</p>
         ) : emails.length === 0 ? (
-          <p className="text-sm text-gray-500">Trash is empty</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Trash2 className="mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-500">Trash is empty</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <ul>
             {emails.map((email) => (
-              <div key={email.id} className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+              <li
+                key={email.id}
+                className="border-b border-gray-50 px-6 py-3 hover:bg-[#f2f6fc]"
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{email.fromAddr}</span>
+                  <span className="text-sm font-medium text-gray-800">{email.fromAddr}</span>
                   <span className="text-xs text-gray-400">{formatDate(email.receivedAt)}</span>
                 </div>
-                <p className="text-sm text-gray-700">{email.subject}</p>
-              </div>
+                <p className="text-sm text-gray-600">{email.subject}</p>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
-    </AppShell>
+    </MailShell>
   );
 }

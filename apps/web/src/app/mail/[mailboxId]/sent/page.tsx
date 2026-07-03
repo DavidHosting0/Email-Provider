@@ -2,9 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { AppShell } from '@/components/app-shell';
+import { MailShell } from '@/components/mail-shell';
 import { api } from '@/lib/api';
-import { formatDate, truncate } from '@/lib/utils';
+import { formatDate, truncate, cn } from '@/lib/utils';
+import { Send } from 'lucide-react';
 
 export default function SentPage() {
   const params = useParams();
@@ -16,53 +17,51 @@ export default function SentPage() {
   });
 
   return (
-    <AppShell>
-      <div className="p-6">
-        <h1 className="mb-4 text-lg font-semibold">Sent</h1>
+    <MailShell>
+      <div className="h-full overflow-y-auto bg-white">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h1 className="text-sm font-semibold text-gray-800">Sent</h1>
+        </div>
+
         {isLoading ? (
-          <p className="text-sm text-gray-500">Loading...</p>
+          <p className="p-6 text-sm text-gray-500">Loading...</p>
         ) : emails.length === 0 ? (
-          <p className="text-sm text-gray-500">No sent messages</p>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">To</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Subject</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {emails.map((email) => (
-                  <tr key={email.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3">{email.toAddrs.join(', ')}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{email.subject}</div>
-                      <div className="text-xs text-gray-400">{truncate(email.bodyText, 60)}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          email.status === 'sent'
-                            ? 'bg-green-100 text-green-700'
-                            : email.status === 'failed'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        {email.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">{formatDate(email.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Send className="mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-500">No sent messages</p>
           </div>
+        ) : (
+          <ul>
+            {emails.map((email) => (
+              <li
+                key={email.id}
+                className="flex items-center gap-4 border-b border-gray-50 px-6 py-3 hover:bg-[#f2f6fc]"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-gray-800">
+                      To: {email.toAddrs.join(', ')}
+                    </span>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase',
+                        email.status === 'sent' && 'bg-green-100 text-green-700',
+                        email.status === 'failed' && 'bg-red-100 text-red-700',
+                        email.status !== 'sent' && email.status !== 'failed' && 'bg-yellow-100 text-yellow-700',
+                      )}
+                    >
+                      {email.status}
+                    </span>
+                  </div>
+                  <p className="truncate text-sm text-gray-700">{email.subject}</p>
+                  <p className="truncate text-xs text-gray-400">{truncate(email.bodyText, 80)}</p>
+                </div>
+                <span className="shrink-0 text-xs text-gray-400">{formatDate(email.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-    </AppShell>
+    </MailShell>
   );
 }

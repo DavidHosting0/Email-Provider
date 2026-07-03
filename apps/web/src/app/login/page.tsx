@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const result = await api.login(email, password);
       api.setTokens(result.accessToken, result.refreshToken);
-      router.push('/dashboard');
+      router.push('/mail');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -34,8 +34,8 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg">
             <Mail className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">MailPlatform</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to your organization</p>
+          <h1 className="text-2xl font-bold text-gray-900">Thrill Seekers Mail</h1>
+          <p className="mt-1 text-sm text-gray-500">thrillseekersofficial.com</p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-xl">

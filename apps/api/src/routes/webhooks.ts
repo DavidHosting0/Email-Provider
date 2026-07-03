@@ -29,23 +29,41 @@ async function fetchCert(url: string): Promise<string> {
 }
 
 function buildSignatureString(msg: SnsMessage): string {
-  const fields: Array<[string, string | undefined]> = [
-    ['Message', msg.Message],
-    ['MessageId', msg.MessageId],
-    ['Subject', msg.Subject],
-    ['Timestamp', msg.Timestamp],
-    ['TopicArn', msg.TopicArn],
-    ['Type', msg.Type],
-  ];
+  const lines: string[] = [];
+
+  const add = (key: string, value: string | undefined) => {
+    if (value !== undefined) lines.push(`${key}\n${value}\n`);
+  };
+
+  add('Message', msg.Message);
+  add('MessageId', msg.MessageId);
+  add('Subject', msg.Subject);
+  add('Timestamp', msg.Timestamp);
 
   if (msg.Type === 'SubscriptionConfirmation' || msg.Type === 'UnsubscribeConfirmation') {
-    fields.push(['SubscribeURL', msg.SubscribeURL], ['Token', msg.Token]);
+    add('Token', msg.Token);
+    add('TopicArn', msg.TopicArn);
+    add('Type', msg.Type);
+    add('SubscribeURL', msg.SubscribeURL);
+  } else {
+    add('TopicArn', msg.TopicArn);
+    add('Type', msg.Type);
   }
 
-  return fields
-    .filter(([, v]) => v !== undefined)
-    .map(([k, v]) => `${k}\n${v}\n`)
-    .join('');
+  return lines.join('');
+}
+
+async function confirmSubscription(url: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      res.resume();
+      if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+        resolve();
+      } else {
+        reject(new Error(`SubscribeURL returned ${res.statusCode}`));
+      }
+    }).on('error', reject);
+  });
 }
 
 async function verifySnsSignature(msg: SnsMessage): Promise<boolean> {
@@ -54,7 +72,8 @@ async function verifySnsSignature(msg: SnsMessage): Promise<boolean> {
 
   try {
     const cert = await fetchCert(msg.SigningCertURL);
-    const verifier = crypto.createVerify('RSA-SHA1');
+    const algorithm = msg.SignatureVersion === '2' ? 'RSA-SHA256' : 'RSA-SHA1';
+    const verifier = crypto.createVerify(algorithm);
     verifier.update(buildSignatureString(msg));
     return verifier.verify(cert, msg.Signature, 'base64');
   } catch {
@@ -80,7 +99,8 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
 
     if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
-      await fetch(msg.SubscribeURL);
+      await confirmSubscription(msg.SubscribeURL);
+      request.log.info({ topicArn: msg.TopicArn }, 'SNS subscription confirmed');
       return { status: 'subscribed' };
     }
 
@@ -105,7 +125,8 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
 
     if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
-      await fetch(msg.SubscribeURL);
+      await confirmSubscription(msg.SubscribeURL);
+      request.log.info({ topicArn: msg.TopicArn }, 'SNS subscription confirmed');
       return { status: 'subscribed' };
     }
 

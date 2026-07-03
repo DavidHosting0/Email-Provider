@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AppShell } from '@/components/app-shell';
+import { MailShell } from '@/components/mail-shell';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -58,9 +58,9 @@ export default function UsersPage() {
   }
 
   return (
-    <AppShell>
-      <div className="p-6">
-        <h1 className="mb-6 text-lg font-semibold">Users</h1>
+    <MailShell>
+      <div className="h-full overflow-y-auto bg-white p-6">
+        <h1 className="mb-6 text-lg font-semibold text-gray-900">Team access</h1>
 
         <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
           <div className="grid gap-3 sm:grid-cols-5">
@@ -132,6 +132,6 @@ export default function UsersPage() {
           ))}
         </div>
       </div>
-    </AppShell>
+    </MailShell>
   );
 }

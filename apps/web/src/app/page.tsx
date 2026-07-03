@@ -9,7 +9,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (api.isAuthenticated) {
-      router.replace('/dashboard');
+      router.replace('/mail');
     } else {
       router.replace('/login');
     }

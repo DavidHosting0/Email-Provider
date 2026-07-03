@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AppShell } from '@/components/app-shell';
+import { MailShell } from '@/components/mail-shell';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -17,6 +17,12 @@ export default function MailboxesPage() {
     queryKey: ['domains'],
     queryFn: () => api.getDomains(),
   });
+
+  useEffect(() => {
+    if (domains.length === 1 && !domainId) {
+      setDomainId(domains[0].id);
+    }
+  }, [domains, domainId]);
 
   const { data: mailboxes = [] } = useQuery({
     queryKey: ['mailboxes'],
@@ -43,9 +49,10 @@ export default function MailboxesPage() {
   }
 
   return (
-    <AppShell>
-      <div className="p-6">
-        <h1 className="mb-6 text-lg font-semibold">Mailboxes</h1>
+    <MailShell>
+      <div className="h-full overflow-y-auto bg-white p-6">
+        <h1 className="mb-1 text-lg font-semibold text-gray-900">Email addresses</h1>
+        <p className="mb-6 text-sm text-gray-500">Manage addresses for thrillseekersofficial.com</p>
 
         <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
           <div className="grid gap-3 sm:grid-cols-4">
@@ -116,6 +123,6 @@ export default function MailboxesPage() {
           </table>
         </div>
       </div>
-    </AppShell>
+    </MailShell>
   );
 }
