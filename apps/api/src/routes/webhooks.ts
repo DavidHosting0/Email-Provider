@@ -6,7 +6,7 @@ import { inboundQueue } from '../lib/queue.js';
 const require = createRequire(import.meta.url);
 const MessageValidator = require('sns-validator') as new () => {
   validate(
-    message: Record<string, unknown>,
+    message: string | Record<string, unknown>,
     cb: (err: Error | null, message: SnsMessage) => void,
   ): void;
 };
@@ -27,9 +27,33 @@ interface SnsMessage {
 
 const snsValidator = new MessageValidator();
 
-function validateSnsMessage(msg: Record<string, unknown>): Promise<SnsMessage> {
+const SNS_KEY_ALIASES: Record<string, string> = {
+  SigningCertUrl: 'SigningCertURL',
+  UnsubscribeUrl: 'UnsubscribeURL',
+};
+
+function normalizeSnsKeys(input: Record<string, unknown>): Record<string, unknown> {
+  const msg = { ...input };
+  for (const [alias, canonical] of Object.entries(SNS_KEY_ALIASES)) {
+    if (msg[canonical] === undefined && msg[alias] !== undefined) {
+      msg[canonical] = msg[alias];
+    }
+  }
+  if (msg.Subject === null) delete msg.Subject;
+  return msg;
+}
+
+function toSnsPayload(body: unknown): string | Record<string, unknown> {
+  if (typeof body === 'string') return body;
+  if (Buffer.isBuffer(body)) return body.toString('utf8');
+  if (body && typeof body === 'object') return normalizeSnsKeys(body as Record<string, unknown>);
+  throw new Error('Invalid SNS body');
+}
+
+function validateSnsMessage(body: unknown): Promise<SnsMessage> {
+  const payload = toSnsPayload(body);
   return new Promise((resolve, reject) => {
-    snsValidator.validate(msg, (err, validated) => {
+    snsValidator.validate(payload, (err, validated) => {
       if (err) reject(err);
       else resolve(validated);
     });
@@ -49,22 +73,25 @@ async function confirmSubscription(url: string): Promise<void> {
   });
 }
 
-function parseSnsBody(body: unknown): Record<string, unknown> {
-  if (typeof body === 'string') return JSON.parse(body) as Record<string, unknown>;
-  if (body && typeof body === 'object') return body as Record<string, unknown>;
-  throw new Error('Invalid SNS body');
-}
-
 async function handleSnsMessage(
   request: FastifyRequest,
   onNotification: (msg: SnsMessage) => Promise<void>,
 ) {
   let msg: SnsMessage;
   try {
-    msg = await validateSnsMessage(parseSnsBody(request.body));
+    msg = await validateSnsMessage(request.body);
   } catch (err) {
+    let keys: string[] = [];
+    try {
+      const preview = toSnsPayload(request.body);
+      keys = typeof preview === 'string'
+        ? Object.keys(JSON.parse(preview) as object)
+        : Object.keys(preview);
+    } catch {
+      keys = ['<unparseable>'];
+    }
     request.log.warn(
-      { err: err instanceof Error ? err.message : err },
+      { err: err instanceof Error ? err.message : err, keys },
       'SNS signature validation failed',
     );
     throw Object.assign(new Error('Invalid SNS signature'), { statusCode: 403 });
@@ -86,13 +113,18 @@ async function handleSnsMessage(
 
 export async function webhookRoutes(app: FastifyInstance) {
   await app.register(async (webhooks) => {
-    webhooks.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
-      try {
-        done(null, parseSnsBody(body));
-      } catch (err) {
-        done(err as Error);
-      }
-    });
+    // Keep raw body as string — sns-validator parses it (avoids Fastify JSON parser issues)
+    const rawStringParser = (
+      _req: unknown,
+      body: string,
+      done: (err: Error | null, result?: string) => void,
+    ) => {
+      done(null, body);
+    };
+
+    webhooks.removeContentTypeParser('application/json');
+    webhooks.addContentTypeParser('application/json', { parseAs: 'string' }, rawStringParser);
+    webhooks.addContentTypeParser('text/plain', { parseAs: 'string' }, rawStringParser);
 
     webhooks.post('/ses/inbound', async (request, reply) => {
       try {
@@ -104,6 +136,10 @@ export async function webhookRoutes(app: FastifyInstance) {
             mail: sesNotification.mail,
             receipt: sesNotification.receipt,
           });
+          request.log.info(
+            { messageId: sesNotification.mail?.messageId },
+            'Inbound email queued',
+          );
         });
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
