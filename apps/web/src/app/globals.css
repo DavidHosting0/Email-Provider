@@ -7,5 +7,9 @@
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-[#f4f6f8] text-slate-900 antialiased;
+}
+
+::selection {
+  @apply bg-indigo-100 text-indigo-900;
 }

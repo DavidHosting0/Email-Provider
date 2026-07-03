@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailShell } from '@/components/mail-shell';
+import { SettingsLayout } from '@/components/settings-layout';
 import { api } from '@/lib/api';
 import { Plus, Trash2, Copy, Check } from 'lucide-react';
 
@@ -51,10 +52,10 @@ export default function DomainsPage() {
 
   return (
     <MailShell>
-      <div className="h-full overflow-y-auto bg-white p-6">
-        <h1 className="mb-1 text-lg font-semibold text-gray-900">Domain & DNS</h1>
-        <p className="mb-6 text-sm text-gray-500">thrillseekersofficial.com — DNS records for Amazon SES</p>
-
+      <SettingsLayout
+        title="Domain & DNS"
+        description="Domain verification and DNS records for Amazon SES"
+      >
         <form onSubmit={handleAdd} className="mb-6 flex gap-3">
           <input
             type="text"
@@ -132,7 +133,7 @@ export default function DomainsPage() {
             </div>
           )}
         </div>
-      </div>
+      </SettingsLayout>
     </MailShell>
   );
 }

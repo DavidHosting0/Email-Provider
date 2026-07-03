@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailShell } from '@/components/mail-shell';
+import { SettingsLayout } from '@/components/settings-layout';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -59,10 +60,8 @@ export default function UsersPage() {
 
   return (
     <MailShell>
-      <div className="h-full overflow-y-auto bg-white p-6">
-        <h1 className="mb-6 text-lg font-semibold text-gray-900">Team access</h1>
-
-        <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+      <SettingsLayout title="Team access" description="Manage who can sign in and access mailboxes">
+        <form onSubmit={handleCreate} className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-5">
             <input
               type="email"
@@ -131,7 +130,7 @@ export default function UsersPage() {
             </div>
           ))}
         </div>
-      </div>
+      </SettingsLayout>
     </MailShell>
   );
 }

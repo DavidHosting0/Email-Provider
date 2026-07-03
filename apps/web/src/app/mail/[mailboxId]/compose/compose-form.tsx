@@ -50,12 +50,12 @@ export default function ComposeForm() {
 
   return (
     <MailShell>
-      <div className="flex h-full flex-col bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h1 className="text-sm font-semibold text-gray-800">New message</h1>
+      <div className="mx-auto flex h-full max-w-3xl flex-col bg-white">
+        <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5">
+          <h1 className="text-base font-semibold text-slate-900">New message</h1>
           <Link
             href={`/mail/${mailboxId}/inbox`}
-            className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
           >
             <X className="h-4 w-4" />
           </Link>
@@ -63,66 +63,66 @@ export default function ComposeForm() {
 
         <form onSubmit={handleSend} className="flex flex-1 flex-col">
           {success && (
-            <div className="mx-4 mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            <div className="mx-8 mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               Message queued. Redirecting to Sent...
             </div>
           )}
           {error && (
-            <div className="mx-4 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="mx-8 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
           )}
 
-          <div className="border-b border-gray-100 px-4 py-2">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="w-8 shrink-0 text-gray-500">To</span>
+          <div className="border-b border-slate-100 px-8 py-3">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="w-10 shrink-0 font-medium text-slate-400">To</span>
               <input
                 type="text"
                 placeholder="recipient@example.com"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 required
-                className="min-w-0 flex-1 py-2 focus:outline-none"
+                className="min-w-0 flex-1 py-1.5 text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
           </div>
-          <div className="border-b border-gray-100 px-4 py-2">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="w-8 shrink-0 text-gray-500">Cc</span>
+          <div className="border-b border-slate-100 px-8 py-3">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="w-10 shrink-0 font-medium text-slate-400">Cc</span>
               <input
                 type="text"
                 placeholder="Optional"
                 value={cc}
                 onChange={(e) => setCc(e.target.value)}
-                className="min-w-0 flex-1 py-2 focus:outline-none"
+                className="min-w-0 flex-1 py-1.5 text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
           </div>
-          <div className="border-b border-gray-100 px-4 py-2">
+          <div className="border-b border-slate-100 px-8 py-3">
             <input
               type="text"
               placeholder="Subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               required
-              className="w-full py-2 text-sm focus:outline-none"
+              className="w-full py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
           </div>
           <textarea
             placeholder="Write your message..."
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            className="min-h-[200px] flex-1 resize-none px-4 py-4 text-sm leading-relaxed focus:outline-none"
+            className="min-h-[280px] flex-1 resize-none px-8 py-6 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
-          <div className="flex justify-end gap-2 border-t border-gray-100 px-4 py-3">
+          <div className="flex justify-end gap-3 border-t border-slate-100 px-8 py-4">
             <Link
               href={`/mail/${mailboxId}/inbox`}
-              className="rounded-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
               Discard
             </Link>
             <button
               type="submit"
               disabled={sending}
-              className="inline-flex items-center gap-2 rounded-full bg-[#1a73e8] px-6 py-2 text-sm font-medium text-white hover:bg-[#1765cc] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
               {sending ? 'Sending...' : 'Send'}

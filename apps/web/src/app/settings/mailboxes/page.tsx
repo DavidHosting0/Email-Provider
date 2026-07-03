@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailShell } from '@/components/mail-shell';
+import { SettingsLayout } from '@/components/settings-layout';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -50,11 +51,11 @@ export default function MailboxesPage() {
 
   return (
     <MailShell>
-      <div className="h-full overflow-y-auto bg-white p-6">
-        <h1 className="mb-1 text-lg font-semibold text-gray-900">Email addresses</h1>
-        <p className="mb-6 text-sm text-gray-500">Manage addresses for thrillseekersofficial.com</p>
-
-        <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+      <SettingsLayout
+        title="Email addresses"
+        description="Create and manage addresses for your domain"
+      >
+        <form onSubmit={handleCreate} className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-4">
             <select
               value={domainId}
@@ -92,7 +93,7 @@ export default function MailboxesPage() {
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </form>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
@@ -122,7 +123,7 @@ export default function MailboxesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </SettingsLayout>
     </MailShell>
   );
 }
