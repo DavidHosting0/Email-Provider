@@ -3,10 +3,11 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { MailShell } from '@/components/mail-shell';
+import { EmailBody } from '@/components/email-body';
 import { api } from '@/lib/api';
 import { formatDate, truncate, cn } from '@/lib/utils';
 import { useState } from 'react';
-import { Inbox, Reply, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Inbox, Reply, RefreshCw } from 'lucide-react';
 
 function senderInitials(from: string) {
   const name = from.split('@')[0] ?? '?';
@@ -33,7 +34,12 @@ export default function InboxPage() {
   return (
     <MailShell>
       <div className="flex h-full">
-        <div className="flex w-full max-w-md shrink-0 flex-col border-r border-mail-border bg-mail-surface md:w-96">
+        <div
+          className={cn(
+            'flex w-full max-w-md shrink-0 flex-col border-r border-mail-border bg-mail-surface md:w-96',
+            selectedThread && 'hidden md:flex',
+          )}
+        >
           <div className="flex items-center justify-between border-b border-mail-border px-5 py-4">
             <h1 className="text-base font-semibold text-mail-text">Inbox</h1>
             <button
@@ -111,7 +117,12 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="hidden flex-1 flex-col overflow-hidden bg-mail-panel md:flex">
+        <div
+          className={cn(
+            'flex flex-1 flex-col overflow-hidden bg-mail-panel',
+            !selectedThread && 'hidden md:flex',
+          )}
+        >
           {!selectedThread ? (
             <div className="flex h-full flex-col items-center justify-center text-mail-muted">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-mail-elevated">
@@ -122,10 +133,19 @@ export default function InboxPage() {
             </div>
           ) : thread ? (
             <>
-              <div className="border-b border-mail-border px-8 py-5">
-                <h2 className="text-lg font-semibold text-mail-text">{thread.subject}</h2>
+              <div className="border-b border-mail-border px-4 py-4 md:px-8 md:py-5">
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => setSelectedThread(null)}
+                    className="mt-0.5 rounded-lg p-2 text-mail-muted transition hover:bg-mail-elevated hover:text-mail-text md:hidden"
+                    aria-label="Back to inbox"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <h2 className="text-lg font-semibold text-mail-text">{thread.subject}</h2>
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto px-8 py-6">
+              <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
                 {thread.inboxEmails.map((email) => (
                   <div key={email.id} className="mb-10 last:mb-0">
                     <div className="mb-5 flex items-start gap-4">
@@ -148,17 +168,12 @@ export default function InboxPage() {
                         </div>
                       </div>
                     </div>
-                    {email.bodyHtml ? (
-                      <div
-                        className="email-body max-w-none pl-14"
-                        dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-                      />
-                    ) : (
-                      <pre className="whitespace-pre-wrap pl-14 font-sans text-sm leading-relaxed text-mail-text/90">
-                        {email.bodyText}
-                      </pre>
-                    )}
-                    <div className="pl-14">
+                    <EmailBody
+                      html={email.bodyHtml}
+                      text={email.bodyText}
+                      className="pl-0 md:pl-14"
+                    />
+                    <div className="pl-0 md:pl-14">
                       <button
                         onClick={() =>
                           router.push(`/mail/${mailboxId}/compose?threadId=${thread.id}`)

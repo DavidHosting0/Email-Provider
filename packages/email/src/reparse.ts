@@ -25,6 +25,15 @@ export function needsBodyReparse(email: EmailBodyFields): boolean {
   const htmlTextLen = email.bodyHtml ? visibleTextLength(email.bodyHtml) : 0;
   if (textLen > 80 && htmlTextLen < textLen * 0.25) return true;
 
+  // Marketing emails rely on <style> blocks; older sanitization removed them
+  if (
+    email.bodyHtml &&
+    /<table/i.test(email.bodyHtml) &&
+    !/<style[\s>]/i.test(email.bodyHtml)
+  ) {
+    return true;
+  }
+
   return false;
 }
 

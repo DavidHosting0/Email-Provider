@@ -2,9 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { sendEmailSchema, updateEmailSchema } from '@email-provider/shared';
 import { buildMailboxAddress } from '@email-provider/shared';
 import { prisma } from '@email-provider/database';
+import { needsBodyReparse, reparseEmailBodyFromS3 } from '@email-provider/email';
 import { getUser, requireMailboxAccess, getMailboxWithDomain } from '../lib/middleware.js';
 import { checkSendRateLimit } from '../lib/rate-limit.js';
 import { outboundQueue } from '../lib/queue.js';
+import { config } from '../config.js';
 
 export async function mailRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
@@ -86,6 +88,31 @@ export async function mailRoutes(app: FastifyInstance) {
       where: { threadId: id, isRead: false },
       data: { isRead: true },
     });
+
+    const s3Config = {
+      region: config.sesRegion,
+      accessKeyId: config.awsAccessKeyId,
+      secretAccessKey: config.awsSecretAccessKey,
+      bucket: config.sesInboundS3Bucket,
+    };
+
+    if (s3Config.bucket) {
+      for (const email of thread.inboxEmails) {
+        if (!needsBodyReparse(email)) continue;
+        try {
+          const fresh = await reparseEmailBodyFromS3(email, s3Config);
+          if (!fresh) continue;
+          await prisma.emailInbox.update({
+            where: { id: email.id },
+            data: { bodyHtml: fresh.bodyHtml, bodyText: fresh.bodyText },
+          });
+          email.bodyHtml = fresh.bodyHtml;
+          email.bodyText = fresh.bodyText;
+        } catch {
+          // Keep stored body if S3 re-parse fails
+        }
+      }
+    }
 
     return thread;
   });
