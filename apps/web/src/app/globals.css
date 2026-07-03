@@ -4,10 +4,38 @@
 
 :root {
   --sidebar-width: 272px;
+  color-scheme: dark;
+}
+
+html {
+  @apply bg-mail-bg;
 }
 
 body {
-  @apply bg-mail-bg text-mail-text antialiased;
+  @apply min-h-screen bg-mail-bg text-mail-text antialiased;
+}
+
+* {
+  scrollbar-color: #2a2a2a transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #2a2a2a;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #3a3a3a;
 }
 
 ::selection {
@@ -23,4 +51,24 @@ select {
 input::placeholder,
 textarea::placeholder {
   @apply text-mail-muted;
+}
+
+select option {
+  @apply bg-mail-elevated text-mail-text;
+}
+
+.email-body {
+  @apply text-sm leading-relaxed text-mail-text/90;
+}
+
+.email-body a {
+  @apply text-brand-400 underline;
+}
+
+.email-body p {
+  @apply mb-3;
+}
+
+.email-body blockquote {
+  @apply border-l-2 border-mail-border pl-4 text-mail-muted;
 }

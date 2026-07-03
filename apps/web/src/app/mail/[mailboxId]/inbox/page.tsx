@@ -150,7 +150,7 @@ export default function InboxPage() {
                     </div>
                     {email.bodyHtml ? (
                       <div
-                        className="prose prose-sm prose-invert max-w-none pl-14 text-mail-text"
+                        className="email-body max-w-none pl-14"
                         dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
                       />
                     ) : (
