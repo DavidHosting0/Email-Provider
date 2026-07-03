@@ -85,7 +85,6 @@ export function MailShell({ children }: { children: React.ReactNode }) {
   const domainName = domains[0]?.name ?? activeMailbox?.domain.name ?? 'Mail';
   const isSettings = pathname.startsWith('/settings');
   const isCompose = pathname.includes('/compose');
-  const activeFolder = folders.find((f) => pathname.endsWith(f.suffix))?.key ?? 'inbox';
   const isAdmin = user?.role === 'org_admin';
 
   async function handleLogout() {
@@ -98,17 +97,16 @@ export function MailShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-[#f4f6f8]">
-      {/* Sidebar */}
-      <aside className="flex w-[272px] shrink-0 flex-col border-r border-slate-200/80 bg-white">
-        <div className="border-b border-slate-100 px-5 py-5">
+    <div className="flex h-screen bg-mail-bg">
+      <aside className="flex w-[272px] shrink-0 flex-col border-r border-mail-border bg-mail-surface">
+        <div className="border-b border-mail-border px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-600 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 shadow-lg shadow-brand-600/20">
               <Mail className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">Thrill Seekers</p>
-              <p className="truncate text-xs text-slate-500">{domainName}</p>
+              <p className="truncate text-sm font-semibold text-mail-text">Thrill Seekers</p>
+              <p className="truncate text-xs text-mail-muted">{domainName}</p>
             </div>
           </div>
         </div>
@@ -116,7 +114,7 @@ export function MailShell({ children }: { children: React.ReactNode }) {
         <div className="p-4">
           <Link
             href={activeMailbox ? `/mail/${activeMailbox.id}/compose` : '/mail'}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-500"
           >
             <PenSquare className="h-4 w-4" />
             Compose
@@ -124,7 +122,7 @@ export function MailShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-4">
-          <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-mail-muted">
             Mailboxes
           </p>
           <div className="space-y-1">
@@ -137,16 +135,16 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                     className={cn(
                       'flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition',
                       isActive
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                        ? 'bg-mail-elevated text-mail-text'
+                        : 'text-mail-muted hover:bg-mail-panel hover:text-mail-text',
                     )}
                   >
                     <div
                       className={cn(
                         'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold',
                         isActive
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-200 text-slate-600',
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-mail-panel text-mail-muted',
                       )}
                     >
                       {mailboxInitials(mb.address)}
@@ -155,12 +153,12 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                       <p className="truncate text-sm font-medium">
                         {mb.displayName ?? mb.address.split('@')[0]}
                       </p>
-                      <p className="truncate text-xs text-slate-500">{mb.address}</p>
+                      <p className="truncate text-xs text-mail-muted">{mb.address}</p>
                     </div>
                   </Link>
 
                   {isActive && (
-                    <nav className="mb-2 ml-3 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+                    <nav className="mb-2 ml-3 mt-1 space-y-0.5 border-l border-mail-border pl-3">
                       {folders.map((folder) => {
                         const href = `/mail/${mb.id}${folder.suffix}`;
                         const active = !isCompose && pathname === href;
@@ -171,8 +169,8 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                             className={cn(
                               'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition',
                               active
-                                ? 'bg-white font-medium text-slate-900 shadow-sm ring-1 ring-slate-200/80'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+                                ? 'bg-mail-panel font-medium text-brand-400'
+                                : 'text-mail-muted hover:bg-mail-panel/60 hover:text-mail-text',
                             )}
                           >
                             <folder.icon className="h-4 w-4" />
@@ -188,14 +186,13 @@ export function MailShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {mailboxes.length === 0 && (
-            <p className="px-2 py-4 text-center text-xs text-slate-400">No mailboxes yet</p>
+            <p className="px-2 py-4 text-center text-xs text-mail-muted">No mailboxes yet</p>
           )}
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-slate-200/80 bg-white px-5">
+        <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-mail-border bg-mail-surface px-5">
           {isAdmin && (
             <div className="relative" ref={settingsRef}>
               <button
@@ -206,8 +203,8 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
                   isSettings || settingsOpen
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ? 'bg-mail-elevated text-brand-400'
+                    : 'text-mail-muted hover:bg-mail-panel hover:text-mail-text',
                 )}
               >
                 <Settings className="h-4 w-4" />
@@ -216,8 +213,8 @@ export function MailShell({ children }: { children: React.ReactNode }) {
               </button>
 
               {settingsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5">
-                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-mail-border bg-mail-panel py-1 shadow-xl">
+                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-mail-muted">
                     Administration
                   </p>
                   {settingsLinks.map((link) => (
@@ -226,11 +223,11 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                       href={link.href}
                       onClick={() => setSettingsOpen(false)}
                       className={cn(
-                        'flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50',
-                        pathname === link.href && 'bg-slate-50 font-medium text-slate-900',
+                        'flex items-center gap-2.5 px-3 py-2.5 text-sm text-mail-muted transition hover:bg-mail-elevated hover:text-mail-text',
+                        pathname === link.href && 'bg-mail-elevated font-medium text-brand-400',
                       )}
                     >
-                      <link.icon className="h-4 w-4 text-slate-400" />
+                      <link.icon className="h-4 w-4" />
                       {link.label}
                     </Link>
                   ))}
@@ -245,28 +242,28 @@ export function MailShell({ children }: { children: React.ReactNode }) {
                 setUserMenuOpen(!userMenuOpen);
                 setSettingsOpen(false);
               }}
-              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-slate-50"
+              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-mail-panel"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-semibold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-xs font-semibold text-white">
                 {(user?.email?.[0] ?? '?').toUpperCase()}
               </div>
-              <span className="hidden max-w-[140px] truncate text-sm text-slate-700 sm:block">
+              <span className="hidden max-w-[140px] truncate text-sm text-mail-text sm:block">
                 {user?.email}
               </span>
-              <ChevronDown className={cn('hidden h-3.5 w-3.5 text-slate-400 sm:block', userMenuOpen && 'rotate-180')} />
+              <ChevronDown className={cn('hidden h-3.5 w-3.5 text-mail-muted sm:block', userMenuOpen && 'rotate-180')} />
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5">
-                <div className="border-b border-slate-100 px-3 py-2.5">
-                  <p className="truncate text-sm font-medium text-slate-900">{user?.name ?? 'User'}</p>
-                  <p className="truncate text-xs text-slate-500">{user?.email}</p>
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-mail-border bg-mail-panel py-1 shadow-xl">
+                <div className="border-b border-mail-border px-3 py-2.5">
+                  <p className="truncate text-sm font-medium text-mail-text">{user?.name ?? 'User'}</p>
+                  <p className="truncate text-xs text-mail-muted">{user?.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-mail-muted transition hover:bg-mail-elevated hover:text-mail-text"
                 >
-                  <LogOut className="h-4 w-4 text-slate-400" />
+                  <LogOut className="h-4 w-4" />
                   Sign out
                 </button>
               </div>
@@ -274,7 +271,7 @@ export function MailShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+        <main className="min-h-0 flex-1 overflow-hidden bg-mail-bg">{children}</main>
       </div>
     </div>
   );

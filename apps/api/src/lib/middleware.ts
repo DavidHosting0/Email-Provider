@@ -23,19 +23,11 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 }
 
 export async function getAccessibleMailboxIds(user: JwtPayload): Promise<string[]> {
-  if (isOrgAdmin(user)) {
-    const mailboxes = await prisma.mailbox.findMany({
-      where: { domain: { organizationId: user.organizationId } },
-      select: { id: true },
-    });
-    return mailboxes.map((m) => m.id);
-  }
-
-  const access = await prisma.userMailboxAccess.findMany({
-    where: { userId: user.sub },
-    select: { mailboxId: true },
+  const mailboxes = await prisma.mailbox.findMany({
+    where: { domain: { organizationId: user.organizationId } },
+    select: { id: true },
   });
-  return access.map((a) => a.mailboxId);
+  return mailboxes.map((m) => m.id);
 }
 
 export async function requireMailboxAccess(

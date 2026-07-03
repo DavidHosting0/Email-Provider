@@ -9,13 +9,9 @@ export async function mailboxRoutes(app: FastifyInstance) {
 
   app.get('/', async (request) => {
     const user = getUser(request);
-    const where =
-      user.role === 'org_admin'
-        ? { domain: { organizationId: user.organizationId } }
-        : { userAccess: { some: { userId: user.sub } } };
 
     const mailboxes = await prisma.mailbox.findMany({
-      where,
+      where: { domain: { organizationId: user.organizationId } },
       include: { domain: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });

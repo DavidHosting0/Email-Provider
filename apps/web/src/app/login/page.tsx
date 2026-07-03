@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Mail } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,54 +27,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-slate-600 text-white shadow-lg">
-            <Mail className="h-8 w-8" />
+    <div className="flex min-h-screen items-center justify-center bg-mail-bg px-4">
+      <form
+        onSubmit={handleSubmit}
+        autoComplete="off"
+        className="w-full max-w-sm rounded-2xl border border-mail-border bg-mail-panel p-6 shadow-xl"
+      >
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            {error}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Thrill Seekers Mail</h1>
-          <p className="mt-2 text-sm text-slate-500">thrillseekersofficial.com</p>
-        </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm">
-          {error && (
-            <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-          )}
+        <input
+          type="text"
+          inputMode="email"
+          name="login-email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore
+          className="mb-3 w-full rounded-xl border border-mail-border bg-mail-elevated px-4 py-2.5 text-sm text-mail-text transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          placeholder="Email"
+        />
 
-          <label className="mb-4 block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              placeholder="you@thrillseekersofficial.com"
-            />
-          </label>
+        <input
+          type="password"
+          name="login-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={8}
+          autoComplete="new-password"
+          data-lpignore="true"
+          data-1p-ignore
+          className="mb-4 w-full rounded-xl border border-mail-border bg-mail-elevated px-4 py-2.5 text-sm text-mail-text transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          placeholder="Password"
+        />
 
-          <label className="mb-6 block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-500 disabled:opacity-50"
+        >
+          {loading ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
     </div>
   );
 }

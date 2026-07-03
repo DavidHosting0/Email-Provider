@@ -3,13 +3,24 @@
 @import 'tailwindcss/utilities';
 
 :root {
-  --sidebar-width: 240px;
+  --sidebar-width: 272px;
 }
 
 body {
-  @apply bg-[#f4f6f8] text-slate-900 antialiased;
+  @apply bg-mail-bg text-mail-text antialiased;
 }
 
 ::selection {
-  @apply bg-indigo-100 text-indigo-900;
+  @apply bg-brand-600/40 text-white;
+}
+
+input,
+textarea,
+select {
+  @apply bg-mail-elevated text-mail-text;
+}
+
+input::placeholder,
+textarea::placeholder {
+  @apply text-mail-muted;
 }

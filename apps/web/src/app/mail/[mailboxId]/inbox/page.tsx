@@ -33,13 +33,13 @@ export default function InboxPage() {
   return (
     <MailShell>
       <div className="flex h-full">
-        <div className="flex w-full max-w-md shrink-0 flex-col border-r border-slate-200/80 bg-white md:w-96">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h1 className="text-base font-semibold text-slate-900">Inbox</h1>
+        <div className="flex w-full max-w-md shrink-0 flex-col border-r border-mail-border bg-mail-surface md:w-96">
+          <div className="flex items-center justify-between border-b border-mail-border px-5 py-4">
+            <h1 className="text-base font-semibold text-mail-text">Inbox</h1>
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 disabled:opacity-50"
+              className="rounded-lg p-2 text-mail-muted transition hover:bg-mail-panel hover:text-brand-400 disabled:opacity-50"
             >
               <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
             </button>
@@ -47,14 +47,14 @@ export default function InboxPage() {
 
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <p className="p-6 text-sm text-slate-500">Loading messages...</p>
+              <p className="p-6 text-sm text-mail-muted">Loading messages...</p>
             ) : threads.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-                  <Inbox className="h-7 w-7 text-slate-300" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-mail-panel">
+                  <Inbox className="h-7 w-7 text-mail-muted" />
                 </div>
-                <p className="text-sm font-medium text-slate-700">All caught up</p>
-                <p className="mt-1 text-xs text-slate-400">New messages will appear here</p>
+                <p className="text-sm font-medium text-mail-text">All caught up</p>
+                <p className="mt-1 text-xs text-mail-muted">New messages will appear here</p>
               </div>
             ) : (
               threads.map((t) => (
@@ -62,16 +62,18 @@ export default function InboxPage() {
                   key={t.id}
                   onClick={() => setSelectedThread(t.id)}
                   className={cn(
-                    'w-full border-b border-slate-50 px-5 py-4 text-left transition hover:bg-slate-50/80',
-                    selectedThread === t.id && 'bg-indigo-50/50',
-                    t.unread && 'border-l-[3px] border-l-indigo-500 bg-white',
+                    'w-full border-b border-mail-border/50 px-5 py-4 text-left transition hover:bg-mail-panel/60',
+                    selectedThread === t.id && 'bg-mail-panel',
+                    t.unread && 'border-l-[3px] border-l-brand-500',
                   )}
                 >
                   <div className="flex gap-3">
                     <div
                       className={cn(
                         'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-                        t.unread ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600',
+                        t.unread
+                          ? 'bg-brand-600/20 text-brand-400'
+                          : 'bg-mail-elevated text-mail-muted',
                       )}
                     >
                       {senderInitials(t.preview?.fromAddr ?? '?')}
@@ -81,24 +83,24 @@ export default function InboxPage() {
                         <span
                           className={cn(
                             'truncate text-sm',
-                            t.unread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700',
+                            t.unread ? 'font-semibold text-mail-text' : 'font-medium text-mail-muted',
                           )}
                         >
                           {t.preview?.fromAddr ?? 'Unknown'}
                         </span>
-                        <span className="shrink-0 text-[11px] text-slate-400">
+                        <span className="shrink-0 text-[11px] text-mail-muted">
                           {formatDate(t.lastMessageAt)}
                         </span>
                       </div>
                       <p
                         className={cn(
                           'truncate text-sm',
-                          t.unread ? 'font-medium text-slate-800' : 'text-slate-600',
+                          t.unread ? 'font-medium text-mail-text' : 'text-mail-muted',
                         )}
                       >
                         {t.subject}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                      <p className="mt-0.5 truncate text-xs text-mail-muted/80">
                         {truncate(t.preview?.bodyText, 70)}
                       </p>
                     </div>
@@ -109,38 +111,38 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="hidden flex-1 flex-col overflow-hidden bg-white md:flex">
+        <div className="hidden flex-1 flex-col overflow-hidden bg-mail-panel md:flex">
           {!selectedThread ? (
-            <div className="flex h-full flex-col items-center justify-center text-slate-400">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50">
-                <Inbox className="h-8 w-8 text-slate-200" />
+            <div className="flex h-full flex-col items-center justify-center text-mail-muted">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-mail-elevated">
+                <Inbox className="h-8 w-8 text-mail-border" />
               </div>
-              <p className="text-sm font-medium text-slate-500">Select a message</p>
-              <p className="mt-1 text-xs text-slate-400">Choose a conversation from your inbox</p>
+              <p className="text-sm font-medium text-mail-text">Select a message</p>
+              <p className="mt-1 text-xs text-mail-muted">Choose a conversation from your inbox</p>
             </div>
           ) : thread ? (
             <>
-              <div className="border-b border-slate-100 px-8 py-5">
-                <h2 className="text-lg font-semibold text-slate-900">{thread.subject}</h2>
+              <div className="border-b border-mail-border px-8 py-5">
+                <h2 className="text-lg font-semibold text-mail-text">{thread.subject}</h2>
               </div>
               <div className="flex-1 overflow-y-auto px-8 py-6">
                 {thread.inboxEmails.map((email) => (
                   <div key={email.id} className="mb-10 last:mb-0">
                     <div className="mb-5 flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mail-elevated text-sm font-semibold text-brand-400">
                         {senderInitials(email.fromAddr)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">{email.fromAddr}</p>
+                            <p className="text-sm font-semibold text-mail-text">{email.fromAddr}</p>
                             {email.toAddrs.length > 0 && (
-                              <p className="mt-0.5 text-xs text-slate-500">
+                              <p className="mt-0.5 text-xs text-mail-muted">
                                 to {email.toAddrs.join(', ')}
                               </p>
                             )}
                           </div>
-                          <span className="shrink-0 text-xs text-slate-400">
+                          <span className="shrink-0 text-xs text-mail-muted">
                             {formatDate(email.receivedAt)}
                           </span>
                         </div>
@@ -148,11 +150,11 @@ export default function InboxPage() {
                     </div>
                     {email.bodyHtml ? (
                       <div
-                        className="prose prose-sm prose-slate max-w-none pl-14 text-slate-800"
+                        className="prose prose-sm prose-invert max-w-none pl-14 text-mail-text"
                         dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
                       />
                     ) : (
-                      <pre className="whitespace-pre-wrap pl-14 font-sans text-sm leading-relaxed text-slate-800">
+                      <pre className="whitespace-pre-wrap pl-14 font-sans text-sm leading-relaxed text-mail-text/90">
                         {email.bodyText}
                       </pre>
                     )}
@@ -161,7 +163,7 @@ export default function InboxPage() {
                         onClick={() =>
                           router.push(`/mail/${mailboxId}/compose?threadId=${thread.id}`)
                         }
-                        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-mail-border bg-mail-elevated px-4 py-2 text-sm font-medium text-mail-text transition hover:border-brand-500/50 hover:text-brand-400"
                       >
                         <Reply className="h-4 w-4" />
                         Reply
@@ -172,7 +174,7 @@ export default function InboxPage() {
               </div>
             </>
           ) : (
-            <p className="p-6 text-sm text-slate-500">Loading...</p>
+            <p className="p-6 text-sm text-mail-muted">Loading...</p>
           )}
         </div>
       </div>

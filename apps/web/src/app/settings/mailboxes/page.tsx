@@ -55,13 +55,13 @@ export default function MailboxesPage() {
         title="Email addresses"
         description="Create and manage addresses for your domain"
       >
-        <form onSubmit={handleCreate} className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <form onSubmit={handleCreate} className="mb-6 rounded-2xl border border-mail-border bg-mail-panel p-5">
           <div className="grid gap-3 sm:grid-cols-4">
             <select
               value={domainId}
               onChange={(e) => setDomainId(e.target.value)}
               required
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-mail-border bg-mail-elevated px-3 py-2 text-sm text-mail-text"
             >
               <option value="">Select domain</option>
               {domains.map((d) => (
@@ -74,47 +74,47 @@ export default function MailboxesPage() {
               value={localPart}
               onChange={(e) => setLocalPart(e.target.value)}
               required
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-mail-border bg-mail-elevated px-3 py-2 text-sm text-mail-text"
             />
             <input
               type="text"
               placeholder="Display name (optional)"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-mail-border bg-mail-elevated px-3 py-2 text-sm text-mail-text"
             />
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500"
             >
               <Plus className="h-4 w-4" /> Create
             </button>
           </div>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
         </form>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-mail-border bg-mail-panel">
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50">
+            <thead className="border-b border-mail-border bg-mail-elevated">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Address</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Display Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
+                <th className="px-4 py-3 text-left font-medium text-mail-muted">Address</th>
+                <th className="px-4 py-3 text-left font-medium text-mail-muted">Display Name</th>
+                <th className="px-4 py-3 text-left font-medium text-mail-muted">Status</th>
+                <th className="px-4 py-3 text-right font-medium text-mail-muted">Actions</th>
               </tr>
             </thead>
             <tbody>
               {mailboxes.map((mb) => (
-                <tr key={mb.id} className="border-b border-gray-50">
-                  <td className="px-4 py-3 font-medium">{mb.address}</td>
-                  <td className="px-4 py-3 text-gray-500">{mb.displayName ?? '—'}</td>
+                <tr key={mb.id} className="border-b border-mail-border/50">
+                  <td className="px-4 py-3 font-medium text-mail-text">{mb.address}</td>
+                  <td className="px-4 py-3 text-mail-muted">{mb.displayName ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${mb.isEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${mb.isEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                       {mb.isEnabled ? 'Active' : 'Disabled'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDelete(mb.id)} className="text-gray-400 hover:text-red-500">
+                    <button onClick={() => handleDelete(mb.id)} className="text-mail-muted hover:text-red-400">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
