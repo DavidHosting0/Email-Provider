@@ -9,7 +9,7 @@ config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env')
 const prisma = new PrismaClient();
 
 async function main() {
-  const orgName = process.env.SEED_ORG_NAME ?? 'Demo Organization';
+  const orgName = process.env.SEED_ORG_NAME ?? 'Thrill Seekers';
   const orgSlug = process.env.SEED_ORG_SLUG ?? 'demo-org';
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';

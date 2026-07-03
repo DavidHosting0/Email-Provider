@@ -60,8 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Mail className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-mail-text">MailPlatform</p>
-            <p className="truncate text-xs text-mail-muted">{user?.organizationName}</p>
+            <p className="truncate text-sm font-semibold text-mail-text">Thrill Seekers</p>
           </div>
         </div>
 

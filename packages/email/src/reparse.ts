@@ -1,4 +1,4 @@
-import { fetchEmailFromS3, type S3Config } from './s3.js';
+import { fetchEmailFromS3, parseS3Ref, type S3Config } from './s3.js';
 import { parseRawEmail } from './mime-parser.js';
 import { isEffectivelyEmptyHtml } from './sanitize.js';
 
@@ -6,6 +6,11 @@ export interface EmailBodyFields {
   bodyHtml: string | null;
   bodyText: string | null;
   rawS3Key: string | null;
+  messageId?: string | null;
+}
+
+export interface ReparseS3Options extends S3Config {
+  prefix?: string;
 }
 
 function visibleTextLength(html: string): number {
@@ -19,35 +24,55 @@ function visibleTextLength(html: string): number {
 
 export function needsBodyReparse(email: EmailBodyFields): boolean {
   if (!email.rawS3Key) return false;
+
+  const html = email.bodyHtml?.trim();
+  const text = email.bodyText?.trim();
+  if (!html && !text) return true;
   if (isEffectivelyEmptyHtml(email.bodyHtml)) return true;
 
-  const textLen = (email.bodyText ?? '').trim().length;
-  const htmlTextLen = email.bodyHtml ? visibleTextLength(email.bodyHtml) : 0;
+  const textLen = text?.length ?? 0;
+  const htmlTextLen = html ? visibleTextLength(html) : 0;
   if (textLen > 80 && htmlTextLen < textLen * 0.25) return true;
 
-  // Marketing emails rely on <style> blocks; older sanitization removed them
-  if (
-    email.bodyHtml &&
-    /<table/i.test(email.bodyHtml) &&
-    !/<style[\s>]/i.test(email.bodyHtml)
-  ) {
-    return true;
-  }
+  if (html && /<table/i.test(html) && !/<style[\s>]/i.test(html)) return true;
 
   return false;
 }
 
 export async function reparseEmailBodyFromS3(
   email: EmailBodyFields,
-  s3Config: S3Config,
+  options: ReparseS3Options,
 ): Promise<{ bodyHtml: string | null; bodyText: string | null } | null> {
-  if (!email.rawS3Key || !s3Config.bucket) return null;
+  if (!email.rawS3Key) return null;
 
-  const raw = await fetchEmailFromS3(s3Config, email.rawS3Key);
-  const parsed = await parseRawEmail(raw);
+  const { bucket: parsedBucket, key } = parseS3Ref(email.rawS3Key, options.bucket);
+  const bucket = parsedBucket || options.bucket;
+  if (!bucket) return null;
 
-  return {
-    bodyHtml: parsed.bodyHtml ?? null,
-    bodyText: parsed.bodyText ?? null,
-  };
+  const s3Config = { ...options, bucket };
+  const keysToTry = new Set<string>([key]);
+
+  if (email.messageId) {
+    const prefix = options.prefix ?? 'inbound/';
+    const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    keysToTry.add(`${normalizedPrefix}${email.messageId}`);
+    keysToTry.add(email.messageId);
+  }
+
+  for (const objectKey of keysToTry) {
+    try {
+      const raw = await fetchEmailFromS3(s3Config, objectKey);
+      const parsed = await parseRawEmail(raw);
+      if (parsed.bodyHtml || parsed.bodyText) {
+        return {
+          bodyHtml: parsed.bodyHtml ?? null,
+          bodyText: parsed.bodyText ?? null,
+        };
+      }
+    } catch {
+      // try next key candidate
+    }
+  }
+
+  return null;
 }

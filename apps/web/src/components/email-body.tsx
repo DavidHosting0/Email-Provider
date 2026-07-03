@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 function isEffectivelyEmptyHtml(html: string | null | undefined): boolean {
-  if (!html) return true;
+  if (!html?.trim()) return true;
   const text = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]*>/g, '')
@@ -12,6 +12,15 @@ function isEffectivelyEmptyHtml(html: string | null | undefined): boolean {
     .replace(/\s+/g, '')
     .trim();
   return text.length === 0;
+}
+
+function hasRenderableHtml(html: string | null | undefined): boolean {
+  if (!html?.trim()) return false;
+  if (!isEffectivelyEmptyHtml(html)) return true;
+  if (/<img[\s>]/i.test(html)) return true;
+  if (/<table[\s>]/i.test(html)) return true;
+  if (/<style[\s>]/i.test(html)) return true;
+  return html.replace(/\s/g, '').length > 80;
 }
 
 function buildEmailSrcDoc(html: string): string {
@@ -46,8 +55,11 @@ interface EmailBodyProps {
 
 export function EmailBody({ html, text, className }: EmailBodyProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const showHtml = html && !isEffectivelyEmptyHtml(html);
-  const srcDoc = useMemo(() => (showHtml ? buildEmailSrcDoc(html) : null), [html, showHtml]);
+  const showHtml = hasRenderableHtml(html);
+  const srcDoc = useMemo(
+    () => (showHtml && html ? buildEmailSrcDoc(html) : null),
+    [html, showHtml],
+  );
 
   useEffect(() => {
     if (!srcDoc || !iframeRef.current) return;
@@ -70,7 +82,6 @@ export function EmailBody({ html, text, className }: EmailBodyProps) {
       if (!doc?.body) return;
       const observer = new ResizeObserver(resize);
       observer.observe(doc.body);
-      iframe.dataset.observer = '1';
       (iframe as HTMLIFrameElement & { _observer?: ResizeObserver })._observer = observer;
     };
 

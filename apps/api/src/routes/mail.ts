@@ -94,23 +94,34 @@ export async function mailRoutes(app: FastifyInstance) {
       accessKeyId: config.awsAccessKeyId,
       secretAccessKey: config.awsSecretAccessKey,
       bucket: config.sesInboundS3Bucket,
+      prefix: config.sesInboundS3Prefix,
     };
 
-    if (s3Config.bucket) {
-      for (const email of thread.inboxEmails) {
-        if (!needsBodyReparse(email)) continue;
-        try {
-          const fresh = await reparseEmailBodyFromS3(email, s3Config);
-          if (!fresh) continue;
-          await prisma.emailInbox.update({
-            where: { id: email.id },
-            data: { bodyHtml: fresh.bodyHtml, bodyText: fresh.bodyText },
-          });
-          email.bodyHtml = fresh.bodyHtml;
-          email.bodyText = fresh.bodyText;
-        } catch {
-          // Keep stored body if S3 re-parse fails
-        }
+    for (const email of thread.inboxEmails) {
+      if (!email.rawS3Key) continue;
+      if (!needsBodyReparse(email) && email.bodyHtml?.trim()) continue;
+
+      try {
+        const fresh = await reparseEmailBodyFromS3(
+          { ...email, messageId: email.messageId },
+          s3Config,
+        );
+        if (!fresh?.bodyHtml && !fresh?.bodyText) continue;
+
+        await prisma.emailInbox.update({
+          where: { id: email.id },
+          data: {
+            bodyHtml: fresh.bodyHtml,
+            bodyText: fresh.bodyText ?? email.bodyText,
+          },
+        });
+        email.bodyHtml = fresh.bodyHtml;
+        if (fresh.bodyText) email.bodyText = fresh.bodyText;
+      } catch (err) {
+        request.log.warn(
+          { emailId: email.id, err: err instanceof Error ? err.message : err },
+          'Failed to reparse email body from S3',
+        );
       }
     }
 

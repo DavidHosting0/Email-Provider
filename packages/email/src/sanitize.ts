@@ -25,6 +25,7 @@ const EMAIL_FORBID_TAGS = [
   'applet', 'base', 'frame', 'frameset',
 ];
 
+/** Strict allowlist sanitization (e.g. compose preview). */
 export function sanitizeHtml(html: string): string {
   return purify.sanitize(html, {
     WHOLE_DOCUMENT: true,
@@ -36,8 +37,54 @@ export function sanitizeHtml(html: string): string {
   });
 }
 
+/**
+ * Minimal sanitization for inbound HTML email bodies.
+ * Preserves marketing/newsletter layout (styles, tables) — display is sandboxed in the UI.
+ */
+export function stripDangerousHtml(html: string): string {
+  let out = html;
+  out = out.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  out = out.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+  out = out.replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '');
+  out = out.replace(/<embed\b[^>]*>/gi, '');
+  out = out.replace(/<form\b[^<]*(?:(?!<\/form>)<[^<]*)*<\/form>/gi, '');
+  out = out.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  out = out.replace(
+    /\b(href|src|xlink:href)\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]*)/gi,
+    '$1=""',
+  );
+  return out.trim();
+}
+
+export function prepareEmailHtml(rawHtml: string): string {
+  const stripped = stripDangerousHtml(rawHtml);
+  if (stripped) return stripped;
+
+  const sanitized = sanitizeHtml(rawHtml);
+  return sanitized.trim();
+}
+
+export function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function isEffectivelyEmptyHtml(html: string | null | undefined): boolean {
-  if (!html) return true;
+  if (!html?.trim()) return true;
   const text = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]*>/g, '')
@@ -46,6 +93,15 @@ export function isEffectivelyEmptyHtml(html: string | null | undefined): boolean
     .replace(/\s+/g, '')
     .trim();
   return text.length === 0;
+}
+
+export function hasRenderableHtml(html: string | null | undefined): boolean {
+  if (!html?.trim()) return false;
+  if (!isEffectivelyEmptyHtml(html)) return true;
+  if (/<img[\s>]/i.test(html)) return true;
+  if (/<table[\s>]/i.test(html)) return true;
+  if (/<style[\s>]/i.test(html)) return true;
+  return html.replace(/\s/g, '').length > 80;
 }
 
 export function wrapEmailDocument(html: string): string {

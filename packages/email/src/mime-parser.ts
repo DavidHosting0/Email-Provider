@@ -1,5 +1,5 @@
 import { simpleParser, type ParsedMail } from 'mailparser';
-import { sanitizeHtml } from './sanitize.js';
+import { prepareEmailHtml, htmlToPlainText, isEffectivelyEmptyHtml } from './sanitize.js';
 
 export interface ParsedEmail {
   messageId: string | undefined;
@@ -12,6 +12,12 @@ export interface ParsedEmail {
   inReplyTo: string | undefined;
 }
 
+function extractRawHtml(parsed: ParsedMail): string | undefined {
+  if (parsed.html) return String(parsed.html);
+  if (parsed.textAsHtml) return String(parsed.textAsHtml);
+  return undefined;
+}
+
 export async function parseRawEmail(raw: Buffer | string): Promise<ParsedEmail> {
   const parsed: ParsedMail = await simpleParser(raw);
 
@@ -19,13 +25,13 @@ export async function parseRawEmail(raw: Buffer | string): Promise<ParsedEmail> 
   const to = extractAddresses(parsed.to);
   const cc = extractAddresses(parsed.cc);
 
-  const bodyText = parsed.text ?? undefined;
-  const rawHtml = parsed.html
-    ? String(parsed.html)
-    : parsed.textAsHtml
-      ? String(parsed.textAsHtml)
-      : undefined;
-  const bodyHtml = rawHtml ? sanitizeHtml(rawHtml) : undefined;
+  const rawHtml = extractRawHtml(parsed);
+  const bodyHtml = rawHtml ? prepareEmailHtml(rawHtml) : undefined;
+
+  let bodyText = parsed.text?.trim() ? parsed.text : undefined;
+  if (!bodyText && bodyHtml && !isEffectivelyEmptyHtml(bodyHtml)) {
+    bodyText = htmlToPlainText(bodyHtml);
+  }
 
   return {
     messageId: parsed.messageId ?? undefined,
@@ -34,7 +40,7 @@ export async function parseRawEmail(raw: Buffer | string): Promise<ParsedEmail> 
     cc,
     subject: parsed.subject ?? '(no subject)',
     bodyText,
-    bodyHtml,
+    bodyHtml: bodyHtml || undefined,
     inReplyTo: parsed.inReplyTo ?? undefined,
   };
 }

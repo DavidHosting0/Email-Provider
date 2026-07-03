@@ -105,7 +105,7 @@ export function MailShell({ children }: { children: React.ReactNode }) {
               <Mail className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-mail-text">{user?.organizationName ?? 'MailPlatform'}</p>
+              <p className="truncate text-sm font-semibold text-mail-text">Thrill Seekers</p>
               <p className="truncate text-xs text-mail-muted">{domainName}</p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { Worker, type Job } from 'bullmq';
 import { prisma } from '@email-provider/database';
-import { fetchEmailFromS3, parseRawEmail, hashParticipants } from '@email-provider/email';
+import { fetchEmailFromS3, parseRawEmail, hashParticipants, formatS3Ref } from '@email-provider/email';
 import { QUEUE_NAMES, parseRedisUrl } from '@email-provider/shared';
 import { workerConfig } from '../config.js';
 import pino from 'pino';
@@ -54,7 +54,7 @@ function normalizePrefix(prefix: string): string {
 async function tryFetchFromS3(
   messageId: string,
   receipt: InboundJobData['receipt'],
-): Promise<{ raw: Buffer; s3Key: string } | null> {
+): Promise<{ raw: Buffer; s3Key: string; bucket: string } | null> {
   const action = receipt.action;
   if (action?.type === 'S3' && action.bucketName && action.objectKey) {
     const key = action.objectKeyPrefix
@@ -69,7 +69,7 @@ async function tryFetchFromS3(
       },
       key,
     );
-    return { raw, s3Key: key };
+    return { raw, s3Key: key, bucket: action.bucketName };
   }
 
   if (!workerConfig.sesInboundS3Bucket) return null;
@@ -88,7 +88,7 @@ async function tryFetchFromS3(
         },
         key,
       );
-      return { raw, s3Key: key };
+      return { raw, s3Key: key, bucket: workerConfig.sesInboundS3Bucket };
     } catch {
       // try next key pattern
     }
@@ -115,7 +115,7 @@ function applySesFallbacks(
 
 async function resolveRawEmail(
   data: InboundJobData,
-): Promise<{ raw: Buffer; s3Key: string | null }> {
+): Promise<{ raw: Buffer; s3Ref: string | null }> {
   const { mail, receipt, content } = data;
 
   // Prefer S3 — full RFC822 MIME, parses reliably
@@ -123,7 +123,7 @@ async function resolveRawEmail(
     const fromS3 = await tryFetchFromS3(mail.messageId, receipt);
     if (fromS3) {
       logger.info({ messageId: mail.messageId, s3Key: fromS3.s3Key }, 'Fetched email from S3');
-      return fromS3;
+      return { raw: fromS3.raw, s3Ref: formatS3Ref(fromS3.bucket, fromS3.s3Key) };
     }
   } catch (err) {
     logger.warn(
@@ -134,7 +134,7 @@ async function resolveRawEmail(
 
   if (content) {
     logger.info({ messageId: mail.messageId }, 'Using raw email from SNS content field');
-    return { raw: Buffer.from(content, 'utf8'), s3Key: null };
+    return { raw: Buffer.from(content, 'utf8'), s3Ref: null };
   }
 
   throw new Error(`Could not resolve email body for message ${mail.messageId}`);
@@ -150,7 +150,7 @@ export function startInboundWorker() {
         'Processing inbound email',
       );
 
-      const { raw, s3Key } = await resolveRawEmail(job.data);
+      const { raw, s3Ref } = await resolveRawEmail(job.data);
       const parsed = applySesFallbacks(await parseRawEmail(raw), mail);
       const recipients = receipt.recipients ?? mail.destination;
 
@@ -208,7 +208,7 @@ export function startInboundWorker() {
             subject: parsed.subject,
             bodyText: parsed.bodyText,
             bodyHtml: parsed.bodyHtml,
-            rawS3Key: s3Key,
+            rawS3Key: s3Ref,
             folder: 'inbox',
             isRead: false,
           },

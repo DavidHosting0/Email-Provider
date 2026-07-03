@@ -22,6 +22,21 @@ function getClient(config: S3Config): S3Client {
   return s3Client;
 }
 
+export function formatS3Ref(bucket: string, key: string): string {
+  return `s3://${bucket}/${key}`;
+}
+
+export function parseS3Ref(rawS3Key: string, defaultBucket: string): { bucket: string; key: string } {
+  if (rawS3Key.startsWith('s3://')) {
+    const rest = rawS3Key.slice(5);
+    const slash = rest.indexOf('/');
+    if (slash > 0) {
+      return { bucket: rest.slice(0, slash), key: rest.slice(slash + 1) };
+    }
+  }
+  return { bucket: defaultBucket, key: rawS3Key };
+}
+
 export async function fetchEmailFromS3(config: S3Config, key: string): Promise<Buffer> {
   const client = getClient(config);
   const response = await client.send(
